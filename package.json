@@ -5,7 +5,7 @@
   "type": "module",
   "main": "./dist/cli.js",
   "bin": {
-    "agent-vision": "./dist/cli.js"
+    "agent-vision": "dist/cli.js"
   },
   "files": [
     "dist/",
