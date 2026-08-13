@@ -1,0 +1,59 @@
+{
+  "name": "@yanickxia/agent-vision",
+  "version": "0.1.0",
+  "description": "A small MCP server and Agent Skill for image and video understanding.",
+  "type": "module",
+  "main": "./dist/cli.js",
+  "bin": {
+    "agent-vision": "./dist/cli.js"
+  },
+  "files": [
+    "dist/",
+    "skills/",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && tsx --test test/*.test.ts",
+    "prepare": "npm run build",
+    "prepack": "npm run typecheck && npm run build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "mcp",
+    "agent-skills",
+    "vision",
+    "image-understanding",
+    "video-understanding",
+    "openai-compatible"
+  ],
+  "author": "Yanick Xia",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yanickxia/agent-vision.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yanickxia/agent-vision/issues"
+  },
+  "homepage": "https://github.com/yanickxia/agent-vision#readme",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.2"
+  }
+}

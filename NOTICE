@@ -1,0 +1,8 @@
+agent-vision is an independent implementation.
+
+It uses the Model Context Protocol SDK and an ffmpeg binary distributed by the
+@ffmpeg-installer/ffmpeg npm package. Those dependencies and platform binaries
+retain their own licenses.
+
+Design references and inspiration are listed in README.md. No GPL-licensed
+source code from farhanic017/vision-tool is included in this project.
