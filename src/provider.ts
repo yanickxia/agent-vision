@@ -1,5 +1,5 @@
 import type { VisionConfig } from "./config.js";
-import { chatCompletionsUrl, requireModel } from "./config.js";
+import { chatCompletionsUrl } from "./config.js";
 import { VisionError } from "./errors.js";
 
 export interface VisionInputImage {
@@ -33,7 +33,6 @@ export async function requestVisionCompletion(options: {
   prompt: string;
   images: VisionInputImage[];
 }): Promise<VisionCompletion> {
-  requireModel(options.config);
   if (options.images.length === 0) {
     throw new VisionError("INVALID_SOURCE", "At least one image is required");
   }
