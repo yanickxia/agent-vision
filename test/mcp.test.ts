@@ -30,6 +30,7 @@ test("MCP stdio lists both tools and calls analyze_image", async () => {
     cwd: path.resolve("."),
     env: {
       ...process.env,
+      XDG_CONFIG_HOME: directory,
       AGENT_VISION_BASE_URL: `http://127.0.0.1:${address.port}/v1`,
       AGENT_VISION_API_KEY: "mock-key",
       AGENT_VISION_MODEL: "mock-model",

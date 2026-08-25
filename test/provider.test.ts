@@ -116,6 +116,7 @@ test("racing targets uses the first success and aborts the losers", async () => 
     await new Promise((resolve) => setTimeout(resolve, 100));
     assert.equal(slowAborted, true);
   } finally {
+    server.closeAllConnections();
     await new Promise<void>((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),
     );
