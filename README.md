@@ -5,10 +5,10 @@ OpenAI-compatible 视觉模型理解图片和视频。
 
 - 纯 Node.js / TypeScript，`npx` 自动下载运行
 - MCP 工具：`analyze_image`、`analyze_video`
-- Agent Skills 标准目录：`skills/agent-vision/`
+- Agent Skills 标准目录：`skills/agent-vision/`，能力自适应：能看图的 Agent 直接看，纯文本 Agent 直接跑 CLI
 - 图片：本地路径、HTTP(S) URL、Data URI
 - 视频：本地路径或 URL，自动下载 npm 内的 ffmpeg 并均匀抽帧
-- 单一 provider，无免费模型列表、fallback 竞速、watchdog 或透明代理
+- 多 provider 多模型并发竞速：所有 target 同时请求，谁先成功用谁，其余请求 abort
 
 ## 为什么做这个项目
 
@@ -31,13 +31,38 @@ ffmpeg 由 `@ffmpeg-installer/ffmpeg` 按平台自动安装，无需另行安装
 
 ## 配置
 
+推荐用配置文件（一次配置，所有宿主共用）：
+
 ```bash
-export AGENT_VISION_BASE_URL="https://your-endpoint.example/v1"
-export AGENT_VISION_API_KEY="your-key"
-export AGENT_VISION_MODEL="your-vision-model"
+mkdir -p ~/.config/agent-vision
+cat > ~/.config/agent-vision/settings.json <<'EOF'
+{
+  "providers": [
+    {
+      "name": "dashscope",
+      "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "apiKey": "sk-...",
+      "models": ["qwen-vl-max", "qwen-vl-plus"]
+    },
+    {
+      "name": "openai",
+      "baseUrl": "https://api.openai.com/v1",
+      "apiKey": "sk-...",
+      "models": ["gpt-4o"]
+    }
+  ]
+}
+EOF
+chmod 600 ~/.config/agent-vision/settings.json
 ```
 
-本地无鉴权端点可以不设置 API key。变量优先级：
+- 位置：`$AGENT_VISION_CONFIG` 显式路径，或 `$XDG_CONFIG_HOME/agent-vision/settings.json`（默认 `~/.config/agent-vision/settings.json`）
+- 每个 provider × model 是一个 target；多个 target 时**并发请求，第一个成功者胜出**，其余请求 abort。注意成本：N 个 target 意味着每次分析最多 N 份上传与推理费用
+- provider 字段：`baseUrl`（必填）、`models`（必填非空）、`name`/`apiKey`/`headers`（可选；`apiKey` 缺省回退环境变量）
+- 顶层可选：`maxTokens`、`timeoutMs`、`headers`、`maxImageMb`、`maxVideoMb`、`allowPrivateUrls`、`ffmpegPath`
+- 文件定义的字段优先于环境变量；含 key 的文件建议 `chmod 600`
+
+环境变量作为回退仍然完整支持（无配置文件时）：
 
 | 设置 | 兼容回退 |
 |---|---|
@@ -66,12 +91,7 @@ export AGENT_VISION_MODEL="your-vision-model"
   "mcpServers": {
     "agent-vision": {
       "command": "npx",
-      "args": ["-y", "@yanickxia/agent-vision"],
-      "env": {
-        "AGENT_VISION_BASE_URL": "https://your-endpoint.example/v1",
-        "AGENT_VISION_API_KEY": "your-key",
-        "AGENT_VISION_MODEL": "your-vision-model"
-      }
+      "args": ["-y", "@yanickxia/agent-vision"]
     }
   }
 }
@@ -84,16 +104,14 @@ export AGENT_VISION_MODEL="your-vision-model"
   "mcpServers": {
     "agent-vision": {
       "command": "npx",
-      "args": ["-y", "github:yanickxia/agent-vision"],
-      "env": {
-        "AGENT_VISION_BASE_URL": "https://your-endpoint.example/v1",
-        "AGENT_VISION_API_KEY": "your-key",
-        "AGENT_VISION_MODEL": "your-vision-model"
-      }
+      "args": ["-y", "github:yanickxia/agent-vision"]
     }
   }
 }
 ```
+
+无需 env 块：配置从 `~/.config/agent-vision/settings.json` 读取（见上文「配置」）。
+也可以继续用环境变量，在 `env` / `environment` 块里传入。
 
 Claude Desktop、Claude Code、Cursor、Cline 等使用上面的标准
 `mcpServers` 格式。
@@ -106,12 +124,7 @@ Claude Desktop、Claude Code、Cursor、Cline 等使用上面的标准
     "agent-vision": {
       "type": "local",
       "command": ["npx", "-y", "@yanickxia/agent-vision"],
-      "enabled": true,
-      "environment": {
-        "AGENT_VISION_BASE_URL": "https://your-endpoint.example/v1",
-        "AGENT_VISION_API_KEY": "your-key",
-        "AGENT_VISION_MODEL": "your-vision-model"
-      }
+      "enabled": true
     }
   }
 }
@@ -123,9 +136,9 @@ Claude Desktop、Claude Code、Cursor、Cline 等使用上面的标准
 npx skills add yanickxia/agent-vision --skill agent-vision -g -y
 ```
 
-也可以复制 `skills/agent-vision/` 到 Agent 的 skills 目录。Skill 负责告诉
-Agent 何时调用图片/视频工具、如何传参和如何处理失败；MCP 负责实际读取文件、
-抽帧和请求模型。
+也可以复制 `skills/agent-vision/` 到 Agent 的 skills 目录。Skill 是能力自适应
+的：Agent 自己能看图就直接看；看不了（或输入是视频）就由 Skill 指导 Agent
+直接跑 CLI 完成分析。
 
 ## CLI
 
