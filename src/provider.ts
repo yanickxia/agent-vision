@@ -1,6 +1,6 @@
-import type { VisionConfig } from "./config.js";
+import type { ModelTarget, VisionConfig } from "./config.js";
 import { chatCompletionsUrl } from "./config.js";
-import { VisionError } from "./errors.js";
+import { VisionError, errorMessage } from "./errors.js";
 
 export interface VisionInputImage {
   dataUrl: string;
@@ -30,9 +30,14 @@ function responseText(content: unknown): string | undefined {
 
 export async function requestVisionCompletion(options: {
   config: VisionConfig;
+  target: ModelTarget;
   prompt: string;
   images: VisionInputImage[];
+  signal?: AbortSignal;
 }): Promise<VisionCompletion> {
+  if (!options.target.model) {
+    throw new VisionError("CONFIG_ERROR", "A vision model target is missing a model name");
+  }
   if (options.images.length === 0) {
     throw new VisionError("INVALID_SOURCE", "At least one image is required");
   }
@@ -50,22 +55,26 @@ export async function requestVisionCompletion(options: {
     });
   }
 
-  const headers = new Headers(options.config.headers);
+  const headers = new Headers(options.target.headers);
   headers.set("content-type", "application/json");
-  if (options.config.apiKey && !headers.has("authorization")) {
-    headers.set("authorization", `Bearer ${options.config.apiKey}`);
+  if (options.target.apiKey && !headers.has("authorization")) {
+    headers.set("authorization", `Bearer ${options.target.apiKey}`);
   }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), options.config.timeoutMs);
+  const external = options.signal;
+  const onExternalAbort = () => controller.abort();
+  if (external?.aborted) controller.abort();
+  external?.addEventListener("abort", onExternalAbort, { once: true });
   let response: Response;
   let raw: string;
   try {
-    response = await fetch(chatCompletionsUrl(options.config.baseUrl), {
+    response = await fetch(chatCompletionsUrl(options.target.baseUrl), {
       method: "POST",
       headers,
       body: JSON.stringify({
-        model: options.config.model,
+        model: options.target.model,
         messages: [{ role: "user", content }],
         max_tokens: options.config.maxTokens,
         stream: false,
@@ -74,6 +83,12 @@ export async function requestVisionCompletion(options: {
     });
     raw = await response.text();
   } catch (error) {
+    if (external?.aborted) {
+      throw new VisionError(
+        "API_ABORTED",
+        "Request aborted because another vision model target finished first",
+      );
+    }
     if (controller.signal.aborted) {
       throw new VisionError(
         "API_TIMEOUT",
@@ -85,6 +100,7 @@ export async function requestVisionCompletion(options: {
     });
   } finally {
     clearTimeout(timer);
+    external?.removeEventListener("abort", onExternalAbort);
   }
 
   let payload: unknown;
@@ -130,9 +146,76 @@ export async function requestVisionCompletion(options: {
   }
   return {
     text,
-    model: typeof record.model === "string" ? record.model : options.config.model,
+    model: typeof record.model === "string" ? record.model : options.target.model,
     ...(record.usage && typeof record.usage === "object"
       ? { usage: record.usage as Record<string, unknown> }
       : {}),
   };
+}
+
+export async function raceVisionCompletions(options: {
+  config: VisionConfig;
+  prompt: string;
+  images: VisionInputImage[];
+}): Promise<VisionCompletion> {
+  const targets = options.config.targets;
+  if (targets.length === 0) {
+    throw new VisionError(
+      "CONFIG_ERROR",
+      "No vision model configured. Add providers to the settings file or set AGENT_VISION_MODEL (or VISION_MODEL / OPENAI_MODEL)",
+    );
+  }
+  const single = targets.length === 1 ? targets[0] : undefined;
+  if (single) {
+    return requestVisionCompletion({
+      config: options.config,
+      target: single,
+      prompt: options.prompt,
+      images: options.images,
+    });
+  }
+
+  const attempts = targets.map((target) => {
+    const controller = new AbortController();
+    return {
+      target,
+      controller,
+      promise: requestVisionCompletion({
+        config: options.config,
+        target,
+        prompt: options.prompt,
+        images: options.images,
+        signal: controller.signal,
+      }),
+    };
+  });
+
+  return new Promise<VisionCompletion>((resolve, reject) => {
+    let pending = attempts.length;
+    const failures: string[] = [];
+    for (const attempt of attempts) {
+      attempt.promise.then(
+        (result) => {
+          for (const other of attempts) {
+            if (other !== attempt && !other.controller.signal.aborted) {
+              other.controller.abort();
+            }
+          }
+          resolve(result);
+        },
+        (error: unknown) => {
+          failures.push(`${attempt.target.label}: ${errorMessage(error)}`);
+          pending -= 1;
+          if (pending === 0) {
+            reject(
+              new VisionError(
+                "API_ERROR",
+                `All vision model targets failed:\n${failures.join("\n")}`,
+              ),
+            );
+          }
+        },
+      );
+    }
+  });
 }

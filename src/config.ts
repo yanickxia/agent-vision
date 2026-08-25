@@ -12,9 +12,6 @@ export interface ModelTarget {
 }
 
 export interface VisionConfig {
-  apiKey?: string;
-  baseUrl: string;
-  model: string;
   targets: ModelTarget[];
   configFile?: string;
   maxTokens: number;
@@ -337,9 +334,6 @@ export function loadConfig(
   }
 
   return {
-    ...(apiKey ? { apiKey } : {}),
-    baseUrl,
-    model,
     targets,
     ...(configFile ? { configFile } : {}),
     maxTokens,

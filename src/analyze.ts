@@ -1,7 +1,7 @@
 import type { VisionConfig } from "./config.js";
 import { loadConfig } from "./config.js";
 import { loadImage } from "./image.js";
-import { requestVisionCompletion, type VisionCompletion } from "./provider.js";
+import { raceVisionCompletions, type VisionCompletion } from "./provider.js";
 import { extractVideoFrames } from "./video.js";
 
 const DEFAULT_IMAGE_PROMPT =
@@ -17,7 +17,7 @@ export async function analyzeImage(options: {
 }): Promise<VisionCompletion> {
   const config = options.config ?? loadConfig();
   const image = await loadImage(options.source, config);
-  return requestVisionCompletion({
+  return raceVisionCompletions({
     config,
     prompt: options.prompt?.trim() || DEFAULT_IMAGE_PROMPT,
     images: [{ dataUrl: image.dataUrl, label: image.label }],
@@ -37,7 +37,7 @@ export async function analyzeVideo(options: {
     config,
   });
   const userPrompt = options.prompt?.trim();
-  return requestVisionCompletion({
+  return raceVisionCompletions({
     config,
     prompt: userPrompt
       ? `${DEFAULT_VIDEO_PROMPT}\n\nUser question: ${userPrompt}`

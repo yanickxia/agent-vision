@@ -18,9 +18,6 @@ export function testTarget(overrides: Partial<ModelTarget> = {}): ModelTarget {
 
 export function testConfig(overrides: Partial<VisionConfig> = {}): VisionConfig {
   return {
-    apiKey: "test-key",
-    baseUrl: "http://127.0.0.1:1/v1",
-    model: "test-vision-model",
     targets: [testTarget()],
     maxTokens: 512,
     timeoutMs: 10_000,

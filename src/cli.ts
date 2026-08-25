@@ -47,18 +47,26 @@ async function runCli(args: string[]): Promise<void> {
     const config = loadConfig();
     let ffmpeg = "unavailable";
     try {
-      ffmpeg = await ensureFfmpeg();
+      ffmpeg = await ensureFfmpeg(config.ffmpegPath);
     } catch {
       // Report below without failing before the full doctor output is printed.
     }
-    const report = [
-      `model: ${config.model || "missing"}`,
-      `base URL: ${config.baseUrl}`,
-      `API key: ${config.apiKey ? "configured" : "not configured (allowed for local endpoints)"}`,
-      `ffmpeg: ${ffmpeg}`,
+    const lines = [
+      `config file: ${config.configFile ?? "not found (using environment variables)"}`,
     ];
-    process.stdout.write(`${report.join("\n")}\n`);
-    if (!config.model || ffmpeg === "unavailable") process.exitCode = 1;
+    if (config.targets.length === 0) {
+      lines.push("targets: none configured");
+    } else {
+      lines.push("targets:");
+      config.targets.forEach((target, index) => {
+        lines.push(
+          `  ${index + 1}. ${target.label}  ${target.baseUrl}  key: ${target.apiKey ? "configured" : "not configured"}`,
+        );
+      });
+    }
+    lines.push(`ffmpeg: ${ffmpeg}`);
+    process.stdout.write(`${lines.join("\n")}\n`);
+    if (config.targets.length === 0 || ffmpeg === "unavailable") process.exitCode = 1;
     return;
   }
   if (command !== "image" && command !== "video") {

@@ -47,9 +47,9 @@ async function bundledFfmpeg(): Promise<string | undefined> {
   }
 }
 
-export function ensureFfmpeg(): Promise<string> {
+export function ensureFfmpeg(configuredPath?: string): Promise<string> {
   ffmpegReady ??= (async () => {
-    const configured = process.env.AGENT_VISION_FFMPEG_PATH?.trim();
+    const configured = configuredPath?.trim() || process.env.AGENT_VISION_FFMPEG_PATH?.trim();
     if (configured) {
       const resolved = path.resolve(configured);
       if (!(await usableFile(resolved))) {
@@ -93,8 +93,9 @@ async function runFfmpeg(
   args: string[],
   allowFailure = false,
   timeoutMs = 120_000,
+  configuredPath?: string,
 ): Promise<string> {
-  const command = await ensureFfmpeg();
+  const command = await ensureFfmpeg(configuredPath);
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { stdio: ["ignore", "ignore", "pipe"] });
     let stderr = "";
@@ -123,11 +124,16 @@ async function runFfmpeg(
   });
 }
 
-async function videoDuration(filePath: string, timeoutMs: number): Promise<number> {
+async function videoDuration(
+  filePath: string,
+  timeoutMs: number,
+  configuredPath?: string,
+): Promise<number> {
   const output = await runFfmpeg(
     ["-hide_banner", "-i", filePath],
     true,
     timeoutMs,
+    configuredPath,
   );
   const match = output.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
   if (!match?.[1] || !match[2] || !match[3]) {
@@ -193,7 +199,11 @@ export async function extractVideoFrames(options: {
   const workDir = await mkdtemp(prefix);
   try {
     const inputPath = await prepareInput(options.source.trim(), workDir, options.config);
-    const duration = await videoDuration(inputPath, options.config.timeoutMs);
+    const duration = await videoDuration(
+      inputPath,
+      options.config.timeoutMs,
+      options.config.ffmpegPath,
+    );
     const timestamps = Array.from(
       { length: options.maxFrames },
       (_, index) => ((index + 0.5) * duration) / options.maxFrames,
@@ -220,6 +230,7 @@ export async function extractVideoFrames(options: {
         ],
         false,
         options.config.timeoutMs,
+        options.config.ffmpegPath,
       );
     }
     const frameNames = (await readdir(workDir))
