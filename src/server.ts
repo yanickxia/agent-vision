@@ -24,7 +24,7 @@ export function createServer(): McpServer {
     {
       title: "Analyze image",
       description:
-        "Analyze an image from a local path, HTTP(S) URL, or base64 data URI. Use this for screenshots, UI, OCR, diagrams, photos, and visual debugging.",
+        "Analyze an image from a local path, HTTP(S) URL, or base64 data URI. Use ONLY when you cannot view the image yourself (no native multimodal/image input) — if you can see the image directly, answer from your own vision instead. For screenshots, UI, OCR, diagrams, photos, and visual debugging.",
       inputSchema: z.object({
         source: z.string().min(1).describe("Local path, HTTP(S) URL, or data:image/... URI"),
         prompt: z.string().optional().describe("The user's specific question about the image"),

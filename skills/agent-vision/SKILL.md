@@ -1,19 +1,19 @@
 ---
 name: agent-vision
-description: Analyze images, screenshots, diagrams, and videos you cannot see natively. Use for image questions, OCR, UI inspection, visual debugging, screen recordings, video summaries, and timeline analysis on text-only agents.
+description: Fallback vision for agents that CANNOT see images themselves. If you can read images natively (multimodal model, image-capable Read tool), do NOT use this skill — look at the image directly instead. Only use for image questions, OCR, UI inspection, or visual debugging when native vision is unavailable or failed, and for ALL video analysis (screen recordings, video summaries, timeline analysis), since no agent can watch video natively.
 license: MIT
 compatibility: Node.js 20+ for the CLI; the MCP server is optional.
 ---
 
 # agent-vision
 
-Use this skill when the user asks about an image or a video.
-
-## Look first
+## Look first — this gate decides everything
 
 If you can read images natively (for example the Read tool in Claude Code or
 built-in multimodal input), look at the image yourself and answer directly.
-Do not call any external tool for an image you can already see.
+Do not load or run anything from this skill for an image you can already see.
+This skill exists only for agents without native vision, or as a fallback when
+native image reading failed.
 
 Videos are the exception: no agent can watch a video natively. Video analysis
 always goes through the CLI below.
