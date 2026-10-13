@@ -84,7 +84,7 @@ chmod 600 ~/.config/agent-vision/settings.json
 
 ## MCP 安装
 
-### npm（发布后推荐）
+### npm（推荐）
 
 ```json
 {

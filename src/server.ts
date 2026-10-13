@@ -4,7 +4,7 @@ import { z } from "zod";
 import { analyzeImage, analyzeVideo } from "./analyze.js";
 import { errorMessage } from "./errors.js";
 
-export const SERVER_VERSION = "0.1.0";
+export const SERVER_VERSION = "0.2.0";
 
 function failure(error: unknown) {
   return {
